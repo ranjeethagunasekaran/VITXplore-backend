@@ -1,0 +1,5 @@
+1.cd models-service
+>> python bert_service.py
+2.mongodb add  ip address
+3.new terminal
+node server.js 
