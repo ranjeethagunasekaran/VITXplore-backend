@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require("cors");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
+const path = require("path");
 const axios = require("axios");
 
 const app = express();
@@ -11,11 +12,10 @@ const app = express();
 // ✅ Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// ✅ CORS (ALLOW ALL for deployment)
 app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE"]
+  origin: "http://127.0.0.1:5500",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
 }));
 
 // ✅ Routes
@@ -28,8 +28,8 @@ const abuseRoute = require("./routes/abuseRoute");
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/user', userRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/chat', abuseRoute);
+app.use("/api/chat", chatRoutes);
+app.use("/api/chat", abuseRoute);
 
 // ✅ MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
@@ -40,7 +40,7 @@ mongoose.connect(process.env.MONGO_URI)
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: "*",
+    origin: "http://127.0.0.1:5500",
     methods: ["GET", "POST"]
   }
 });
@@ -49,6 +49,7 @@ io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
 
   socket.on("chatMessage", (msg) => {
+    console.log("💬 Message received:", msg);
     io.emit("chatMessage", msg);
   });
 
@@ -57,26 +58,35 @@ io.on("connection", (socket) => {
   });
 });
 
-// ✅ Flask model check (LOCAL ONLY)
-async function checkModelServer() {
-  if (process.env.NODE_ENV === "production") {
-    console.log("⚠️ Skipping Flask model check in production");
-    return;
-  }
+// ✅ Serve frontend (only for non-API routes)
+const frontendPath = path.join(
+  __dirname,
+  "../The_real_VITXPLORE-chat/The_real_VITXPLORE-5/vit_ui_demo/vit_ui_demo"
+);
+app.use(express.static(frontendPath));
 
+app.get(/^(?!\/api).*/, (req, res) => {
+  res.sendFile(path.join(frontendPath, "index.html"));
+});
+
+// ✅ Check if Flask model server is online
+async function checkModelServer() {
   try {
     const res = await axios.post("http://127.0.0.1:5050/api/chat/check-abuse", {
       message: "test"
     });
-    console.log(`🤖 BERT model connected → ${res.data.source}`);
-  } catch {
-    console.warn("⚠️ Flask model not reachable locally");
+    console.log(`🤖 BERT model connected successfully → ${res.data.source}`);
+  } catch (err) {
+    console.warn("⚠️ Flask model (bert_service.py) not reachable on port 5050.");
+    console.warn("   ➤ Run it using: python models-service/bert_service.py");
   }
 }
 
 // ✅ Start server
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, async () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  await checkModelServer();
+  console.log(`🚀 Server running with Socket.IO on http://localhost:${PORT}`);
+  await checkModelServer(); // test Flask connection at startup
 });
+console.log("EMAIL_USER:", process.env.EMAIL_USER ? "LOADED" : "MISSING");
+console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "LOADED" : "MISSING");
