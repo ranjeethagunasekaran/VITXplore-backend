@@ -80,3 +80,11 @@ httpServer.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT}`);
   await checkModelServer();
 });
+
+app.get("/envcheck", (req, res) => {
+  res.json({
+    EMAIL_USER: process.env.EMAIL_USER ? "✅" : "❌",
+    EMAIL_PASS: process.env.EMAIL_PASS ? "✅" : "❌",
+    JWT_SECRET: process.env.JWT_SECRET ? "✅" : "❌",
+  });
+});
