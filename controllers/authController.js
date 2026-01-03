@@ -23,7 +23,6 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const otp = generateOtp();
 
     const user = new User({
@@ -31,7 +30,7 @@ exports.register = async (req, res) => {
       email,
       password: hashedPassword,
       otp,
-      otpExpiry: Date.now() + 10 * 60 * 1000 // 10 mins
+      otpExpiry: Date.now() + 10 * 60 * 1000
     });
 
     await user.save();
@@ -40,19 +39,17 @@ exports.register = async (req, res) => {
       from: process.env.EMAIL_USER,
       to: email,
       subject: "VITXPLORE OTP Verification",
-      html: `
-        <p>Hello ${name},</p>
-        <p>Your OTP is <b>${otp}</b></p>
-        <p>Valid for 10 minutes.</p>
-      `
+      html: `<p>Hello ${name},</p><p>Your OTP is <b>${otp}</b></p><p>Valid for 10 minutes.</p>`
     });
 
     res.json({ message: "OTP sent to email. Please verify." });
 
   } catch (err) {
+    console.error("REGISTER ERROR:", err); // ✅ Log full error
     res.status(500).json({ error: err.message });
   }
 };
+
 exports.verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
