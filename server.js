@@ -1,92 +1,113 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
+require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
 const cors = require("cors");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
-const path = require("path");
 const axios = require("axios");
 
 const app = express();
 
-// ✅ Middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(cors({
-  origin: "http://127.0.0.1:5500",
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
-}));
+/* =======================
+   ✅ Middleware
+======================= */
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// ✅ Routes
-const authRoutes = require('./routes/authRoutes');
-const postRoutes = require('./routes/postRoutes');
-const userRoutes = require('./routes/userRoutes');
+app.use(
+  cors({
+    origin: "*", // frontend hosted separately
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
+
+/* =======================
+   ✅ Routes
+======================= */
+const authRoutes = require("./routes/authRoutes");
+const postRoutes = require("./routes/postRoutes");
+const userRoutes = require("./routes/userRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const abuseRoute = require("./routes/abuseRoute");
 
-app.use('/api/auth', authRoutes);
-app.use('/api/posts', postRoutes);
-app.use('/api/user', userRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/posts", postRoutes);
+app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/chat", abuseRoute);
 
-// ✅ MongoDB Connection
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ MongoDB Connected'))
-  .catch(err => console.error('❌ MongoDB Connection Error:', err.message));
+/* =======================
+   ✅ MongoDB
+======================= */
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch((err) =>
+    console.error("❌ MongoDB Connection Error:", err.message)
+  );
 
-// ✅ Socket.IO Setup
+/* =======================
+   ✅ HTTP + Socket.IO
+======================= */
 const httpServer = createServer(app);
+
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://127.0.0.1:5500",
-    methods: ["GET", "POST"]
-  }
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
 });
 
 io.on("connection", (socket) => {
-  console.log("🔌 User connected:", socket.id);
+  console.log("🔌 Socket connected:", socket.id);
 
   socket.on("chatMessage", (msg) => {
-    console.log("💬 Message received:", msg);
     io.emit("chatMessage", msg);
   });
 
   socket.on("disconnect", () => {
-    console.log("❌ User disconnected:", socket.id);
+    console.log("❌ Socket disconnected:", socket.id);
   });
 });
 
-// ✅ Serve frontend (only for non-API routes)
-const frontendPath = path.join(
-  __dirname,
-  "../The_real_VITXPLORE-chat/The_real_VITXPLORE-5/vit_ui_demo/vit_ui_demo"
-);
-app.use(express.static(frontendPath));
-
-app.get(/^(?!\/api).*/, (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
-});
-
-// ✅ Check if Flask model server is online
+/* =======================
+   ✅ Flask ML check (LOCAL ONLY)
+======================= */
 async function checkModelServer() {
+  if (process.env.NODE_ENV === "production") {
+    console.log("⚠️ Skipping Flask model check in production");
+    return;
+  }
+
   try {
-    const res = await axios.post("http://127.0.0.1:5050/api/chat/check-abuse", {
-      message: "test"
+    await axios.post("http://127.0.0.1:5050/api/chat/check-abuse", {
+      message: "test",
     });
-    console.log(`🤖 BERT model connected successfully → ${res.data.source}`);
-  } catch (err) {
-    console.warn("⚠️ Flask model (bert_service.py) not reachable on port 5050.");
-    console.warn("   ➤ Run it using: python models-service/bert_service.py");
+    console.log("🤖 Flask BERT model connected");
+  } catch {
+    console.warn("⚠️ Flask model not reachable locally");
   }
 }
 
-// ✅ Start server
+/* =======================
+   ✅ Start Server
+======================= */
 const PORT = process.env.PORT || 5000;
+
 httpServer.listen(PORT, async () => {
-  console.log(`🚀 Server running with Socket.IO on http://localhost:${PORT}`);
-  await checkModelServer(); // test Flask connection at startup
+  console.log(`🚀 Backend running on port ${PORT}`);
+  await checkModelServer();
 });
-console.log("EMAIL_USER:", process.env.EMAIL_USER ? "LOADED" : "MISSING");
-console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "LOADED" : "MISSING");
+
+/* =======================
+   ✅ ENV DEBUG
+======================= */
+console.log(
+  "EMAIL_USER:",
+  process.env.EMAIL_USER ? "LOADED" : "MISSING"
+);
+console.log(
+  "EMAIL_PASS:",
+  process.env.EMAIL_PASS ? "LOADED" : "MISSING"
+);
