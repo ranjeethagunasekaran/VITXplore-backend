@@ -16,14 +16,24 @@ const transporter = nodemailer.createTransport({
 // ✅ Register Controller
 exports.register = async (req, res) => {
   try {
+    console.log("➡️ Register API hit");
+
     const { name, email, password } = req.body;
+    console.log("📩 Data:", name, email);
 
     const existingUser = await User.findOne({ email });
-    if (existingUser)
+    console.log("🔍 User checked");
+
+    if (existingUser) {
+      console.log("⚠️ User already exists");
       return res.status(400).json({ message: "User already exists" });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    console.log("🔐 Password hashed");
+
     const otp = generateOtp();
+    console.log("🔢 OTP generated:", otp);
 
     const user = new User({
       name,
@@ -34,21 +44,26 @@ exports.register = async (req, res) => {
     });
 
     await user.save();
+    console.log("✅ User saved to DB");
 
+    console.log("📤 Sending email...");
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
       subject: "VITXPLORE OTP Verification",
-      html: `<p>Hello ${name},</p><p>Your OTP is <b>${otp}</b></p><p>Valid for 10 minutes.</p>`
+      text: `Your OTP is ${otp}`
     });
+
+    console.log("📧 Email sent successfully");
 
     res.json({ message: "OTP sent to email. Please verify." });
 
   } catch (err) {
-    console.error("REGISTER ERROR:", err); // ✅ Log full error
+    console.error("❌ REGISTER CRASH:", err);
     res.status(500).json({ error: err.message });
   }
 };
+
 
 exports.verifyOtp = async (req, res) => {
   try {
