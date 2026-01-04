@@ -42,7 +42,7 @@ exports.register = async (req, res) => {
     await axios.post(
       "https://api.brevo.com/v3/smtp/email",
       {
-        sender: { name: "VITXPLORE", email: "no-reply@brevosmtp.com" },
+        sender: { name: "VITXPLORE", email: "ranjeethagunasekaran@gmail.com" },
         to: [{ email }],
         subject: "VITXPLORE OTP Verification",
         htmlContent: `<p>Your OTP is <b>${otp}</b></p>`
