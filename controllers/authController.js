@@ -5,7 +5,6 @@ const jwt = require("jsonwebtoken");
 const generateOtp = require('../utils/generateOtp');
 
 // ✅ Email Transporter
-const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
