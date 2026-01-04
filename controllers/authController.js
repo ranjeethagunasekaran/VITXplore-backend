@@ -5,15 +5,18 @@ const jwt = require("jsonwebtoken");
 const generateOtp = require('../utils/generateOtp');
 
 // ✅ Email Transporter
+const nodemailer = require("nodemailer");
+
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true, // true for 465
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: false, // MUST be false for port 587
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS // MUST be App Password
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
   }
 });
+
 
 // ✅ Register Controller
 exports.register = async (req, res) => {
