@@ -7,12 +7,23 @@ const generateOtp = require('../utils/generateOtp');
 // ✅ Email Transporter
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: false, // MUST be false for port 587
+  host: "smtp-relay.brevo.com",
+  port: 587,
+  secure: false,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
+  },
+  connectionTimeout: 15000,
+  greetingTimeout: 15000,
+  socketTimeout: 15000
+});
+
+transporter.verify((err) => {
+  if (err) {
+    console.error("❌ SMTP VERIFY FAILED:", err);
+  } else {
+    console.log("✅ SMTP READY");
   }
 });
 
@@ -51,12 +62,12 @@ exports.register = async (req, res) => {
     console.log("✅ User saved to DB");
 
     console.log("📤 Sending email...");
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "VITXPLORE OTP Verification",
-      text: `Your OTP is ${otp}`
-    });
+   await transporter.sendMail({
+  from: '"VITXPLORE" <no-reply@vitxplore.com>',
+  to: email,
+  subject: "VITXPLORE OTP Verification",
+  html: `<p>Your OTP is <b>${otp}</b></p>`
+});
 
     console.log("📧 Email sent successfully");
 
