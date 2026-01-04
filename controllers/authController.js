@@ -1,34 +1,12 @@
-const User = require('../models/User');
-const bcrypt = require('bcrypt');
-const nodemailer = require('nodemailer');
+const User = require("../models/User");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const generateOtp = require('../utils/generateOtp');
+const axios = require("axios");
+const generateOtp = require("../utils/generateOtp");
 
-// ✅ Email Transporter
-
-const transporter = nodemailer.createTransport({
-  host: "smtp-relay.brevo.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  },
-  connectionTimeout: 15000,
-  greetingTimeout: 15000,
-  socketTimeout: 15000
-});
-
-transporter.verify((err) => {
-  if (err) {
-    console.error("❌ SMTP VERIFY FAILED:", err);
-  } else {
-    console.log("✅ SMTP READY");
-  }
-});
-
-
-// ✅ Register Controller
+// ==========================
+// REGISTER
+// ==========================
 exports.register = async (req, res) => {
   try {
     console.log("➡️ Register API hit");
@@ -37,10 +15,7 @@ exports.register = async (req, res) => {
     console.log("📩 Data:", name, email);
 
     const existingUser = await User.findOne({ email });
-    console.log("🔍 User checked");
-
     if (existingUser) {
-      console.log("⚠️ User already exists");
       return res.status(400).json({ message: "User already exists" });
     }
 
@@ -55,38 +30,51 @@ exports.register = async (req, res) => {
       email,
       password: hashedPassword,
       otp,
-      otpExpiry: Date.now() + 10 * 60 * 1000
+      otpExpiry: Date.now() + 10 * 60 * 1000,
+      isVerified: false
     });
 
     await user.save();
     console.log("✅ User saved to DB");
 
-    console.log("📤 Sending email...");
-   await transporter.sendMail({
-  from: '"VITXPLORE" <no-reply@vitxplore.com>',
-  to: email,
-  subject: "VITXPLORE OTP Verification",
-  html: `<p>Your OTP is <b>${otp}</b></p>`
-});
+    console.log("📤 Sending email via Brevo API...");
+
+    await axios.post(
+      "https://api.brevo.com/v3/smtp/email",
+      {
+        sender: { name: "VITXPLORE", email: "no-reply@vitxplore.com" },
+        to: [{ email }],
+        subject: "VITXPLORE OTP Verification",
+        htmlContent: `<p>Your OTP is <b>${otp}</b></p>`
+      },
+      {
+        headers: {
+          "api-key": process.env.BREVO_API_KEY,
+          "Content-Type": "application/json"
+        },
+        timeout: 10000
+      }
+    );
 
     console.log("📧 Email sent successfully");
 
     res.json({ message: "OTP sent to email. Please verify." });
 
   } catch (err) {
-    console.error("❌ REGISTER CRASH:", err);
-    res.status(500).json({ error: err.message });
+    console.error("❌ REGISTER CRASH:", err.response?.data || err.message);
+    res.status(500).json({ message: "Failed to send OTP" });
   }
 };
 
-
+// ==========================
+// VERIFY OTP
+// ==========================
 exports.verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user)
-      return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     if (user.isVerified)
       return res.json({ message: "Already verified" });
@@ -107,40 +95,30 @@ exports.verifyOtp = async (req, res) => {
   }
 };
 
-
-// ✅ Login Controller
-
+// ==========================
+// LOGIN
+// ==========================
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1️⃣ Find user
     const user = await User.findOne({ email });
-    if (!user) {
+    if (!user)
       return res.status(400).json({ message: "User not found" });
-    }
 
-  if (user.isVerified !== true) {
-  return res.status(400).json({
-    message: "Please complete OTP verification"
-  });
-}
+    if (!user.isVerified)
+      return res.status(400).json({ message: "Please complete OTP verification" });
 
-
-    // 3️⃣ Check password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
+    if (!isMatch)
       return res.status(400).json({ message: "Invalid credentials" });
-    }
 
-    // 4️⃣ Create token
     const token = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    // 5️⃣ Send response
     res.json({
       token,
       user: {
@@ -150,7 +128,7 @@ exports.login = async (req, res) => {
       }
     });
 
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ message: "Login failed" });
   }
 };
