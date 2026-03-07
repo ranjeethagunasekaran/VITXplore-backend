@@ -1,16 +1,26 @@
 const axios = require("axios");
 
+const axios = require("axios");
+
 async function analyzeContent(text, imageBase64) {
-    const response = await axios.post("http://127.0.0.1:8000/predict", {
-        text: text,
-        image_base64: imageBase64 || null
-    });
+  try {
+    const response = await axios.post(
+      "https://ranjeethagunasekaran-vitxplore-ocr.hf.space/run/predict",
+      {
+        data: [text]   // Gradio expects data array
+      }
+    );
 
     return response.data;
+
+  } catch (error) {
+    console.error("AI request failed:", error.message);
+    return null;
+  }
 }
 
 function convertAIResponseToVector(aiResponse) {
-    return aiResponse.domain_vector;
+  return aiResponse.data;
 }
 
 module.exports = { analyzeContent, convertAIResponseToVector };
