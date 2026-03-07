@@ -1,3 +1,6 @@
+const User = require('../models/User');
+const { analyzeContent, convertAIResponseToVector } = require('../utils/aiService');
+const { DOMAINS } = require('../utils/domainConfig');
 const Post = require('../models/Post');
 
 // Create Post (supports image & video)
@@ -15,15 +18,50 @@ exports.createPost = async (req, res) => {
       return res.status(400).json({ message: "Invalid media type. Must be 'image' or 'video'" });
     }
 
+    // 1️⃣ Create Post
     const post = new Post({ user: userId, text, media, type });
     await post.save();
 
+    // 2️⃣ Run AI Analysis (Non-blocking safe logic)
+    try {
+      const aiResponse = await analyzeContent(text || "", media || "");
+      const newVector = convertAIResponseToVector(aiResponse);
+
+      const user = await User.findById(userId);
+
+      if (user) {
+        // 3️⃣ Update domainVector
+        for (let i = 0; i < user.domainVector.length; i++) {
+          user.domainVector[i] += newVector[i];
+        }
+
+        // 4️⃣ Normalize Vector (Professional Approach)
+        const sum = user.domainVector.reduce((a, b) => a + b, 0);
+        if (sum > 0) {
+          user.domainVector = user.domainVector.map(v => v / sum);
+        }
+
+        // 5️⃣ Recalculate dominantDomain
+        const maxIndex = user.domainVector.indexOf(
+          Math.max(...user.domainVector)
+        );
+
+        user.dominantDomain = DOMAINS[maxIndex];
+
+        await user.save();
+      }
+
+    } catch (aiError) {
+      console.log("AI analysis failed:", aiError.message);
+      // Post is still created even if AI fails
+    }
+
     res.status(201).json({ message: "Post created", post });
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
-
 // Get All Posts (feed)
 exports.getPosts = async (req, res) => {
   try {

@@ -1,6 +1,9 @@
+// At the top of server.js, after requiring mongoose
+ // adjust the path if your model is somewhere else
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
+const User = require("./models/User");
 const cors = require("cors");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -30,6 +33,11 @@ app.use('/api/posts', postRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/chat', abuseRoute);
+
+app.get("/", (req, res) => {
+  res.send("VitExplore Backend is Running 🚀");
+});
+
 
 // ✅ MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
@@ -88,3 +96,4 @@ app.get("/envcheck", (req, res) => {
     JWT_SECRET: process.env.JWT_SECRET ? "✅" : "❌",
   });
 });
+

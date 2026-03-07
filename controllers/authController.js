@@ -128,7 +128,11 @@ exports.login = async (req, res) => {
       }
     });
 
-  } catch (err) {
-    res.status(500).json({ message: "Login failed" });
-  }
+  }  catch (err) {
+  console.error("❌ LOGIN ERROR FULL:", err);
+  console.error("❌ MESSAGE:", err.message);
+  res.status(500).json({ message: "Login failed" });
+}
+
+
 };

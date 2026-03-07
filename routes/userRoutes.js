@@ -1,7 +1,6 @@
-// routes/userRoutes.js
 const express = require("express");
 const router = express.Router();
-const { updateBio, updatePic, getUser } = require("../controllers/userController");
+const { updateBio, updatePic, getUser, getSimilarUsers } = require("../controllers/userController");
 const authMiddleware = require("../middleware/authMiddleware");
 const User = require("../models/User");
 
@@ -10,26 +9,28 @@ router.get("/me", authMiddleware, getUser);
 router.post("/update-bio", authMiddleware, updateBio);
 router.post("/update-pic", authMiddleware, updatePic);
 
-// ✅ Get All Users (for Suggestions)
+// ✅ AI Similar Users
+router.get("/similar", authMiddleware, getSimilarUsers);
+
+// ✅ Get All Users (Basic Suggestions)
 router.get("/users", authMiddleware, async (req, res) => {
   try {
- const currentUser = await User.findById(req.user.id);
+    const currentUser = await User.findById(req.user.id);
 
-const users = await User.find({
-  _id: { $ne: req.user.id },
-  name: { $exists: true, $ne: "" }
-}).select("name pic bio followers following");
+    const users = await User.find({
+      _id: { $ne: req.user.id },
+      name: { $exists: true, $ne: "" }
+    }).select("name pic bio followers following");
 
-const usersWithFollowStatus = users.map(u => ({
-  _id: u._id,
-  name: u.name,
-  pic: u.pic,
-  bio: u.bio,
-  isFollowing: currentUser.following.includes(u._id)
-}));
+    const usersWithFollowStatus = users.map(u => ({
+      _id: u._id,
+      name: u.name,
+      pic: u.pic,
+      bio: u.bio,
+      isFollowing: currentUser.following.includes(u._id)
+    }));
 
-
-   res.json(usersWithFollowStatus);
+    res.json(usersWithFollowStatus);
 
   } catch (err) {
     console.error(err);
@@ -72,4 +73,21 @@ router.post("/follow/:id", authMiddleware, async (req, res) => {
   }
 });
 
+// ✅ Same-Domain Users (Message Page)
+router.get("/same-domain", authMiddleware, async (req, res) => {
+  try {
+    const loggedUser = await User.findById(req.user.id);
+
+    const users = await User.find({
+      dominantDomain: loggedUser.dominantDomain,
+      _id: { $ne: loggedUser._id }
+    });
+
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ Export router ONCE
 module.exports = router;

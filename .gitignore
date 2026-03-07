@@ -1,2 +1,5 @@
+
 node_modules/
+models-service/venv/
+models-service/__pycache__/
 .env
