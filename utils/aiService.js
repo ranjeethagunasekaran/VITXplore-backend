@@ -1,25 +1,19 @@
-
 const axios = require("axios");
 
-async function analyzeContent(text, imageBase64) {
+async function analyzeContent(text) {
   try {
+
     const response = await axios.post(
-      "https://ranjeethagunasekaran-vitxplore-ocr.hf.space/run/predict",
-      {
-        data: [text]   // Gradio expects data array
-      }
+      "https://vitxplore-ml.onrender.com/predict",
+      { text }
     );
 
     return response.data;
 
   } catch (error) {
-    console.error("AI request failed:", error.message);
+    console.error("ML API error:", error.message);
     return null;
   }
 }
 
-function convertAIResponseToVector(aiResponse) {
-  return aiResponse.data;
-}
-
-module.exports = { analyzeContent, convertAIResponseToVector };
+module.exports = { analyzeContent };
