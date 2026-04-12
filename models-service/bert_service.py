@@ -38,7 +38,7 @@ def is_abusive_text(text):
 
     return is_abusive, toxic_score, "model_predicted"
 
-@app.route("/check-abuse", methods=["POST"])
+@app.route("/api/chat/check-abuse", methods=["POST"])
 def check_abuse():
     data = request.json
     message = data.get("message", "")
